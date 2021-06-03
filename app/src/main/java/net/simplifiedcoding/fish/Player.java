@@ -9,6 +9,7 @@ public class Player {
     private Bitmap bitmap;
     private int x;
     private int y;
+    private int hp = 0;
     private int speed = 0;
     private boolean boosting;
     private final int GRAVITY = -10;
@@ -31,6 +32,7 @@ public class Player {
 
         //initializing rect object
         detectCollision =  new Rect(x, y, bitmap.getWidth(), bitmap.getHeight());
+        resetHp();
     }
 
     public void setBoosting() {
@@ -90,6 +92,16 @@ public class Player {
         return y;
     }
 
+    public int getHeight(){ return bitmap.getHeight(); }
+
+    public int getWidth(){ return  bitmap.getWidth(); }
+
+    public void addHp(int _hp) { hp += _hp; }
+
+    public int getHp() {return hp;}
+    public void resetHp() {
+        hp = 200;
+    }
     public int getSpeed() {
         return speed;
     }
