@@ -18,12 +18,17 @@ import java.util.Random;
 
 public class GameView extends SurfaceView implements Runnable {
 
+    public static final int MAX_LEVEL = 3;
     volatile boolean playing;
     private Thread gameThread = null;
     private Player player;
     public Bitmap background;
     public Bitmap[] backgroundsLevel;
+    public Bitmap gameover_title;
+    public Bitmap you_win_title;
+    public int retrycounter=0;
     public int level;
+    public static boolean youWon = false;
     //a screenX holder
     int screenX;
     int screenY;
@@ -66,6 +71,7 @@ public class GameView extends SurfaceView implements Runnable {
 
     final MediaPlayer gameOversound;
 
+    static MediaPlayer areYouWinningSon;
 
     public GameView(Context context, int _screenX, int _screenY) {
         super(context);
@@ -82,9 +88,9 @@ public class GameView extends SurfaceView implements Runnable {
 
         backgroundsLevel = new Bitmap[4];
         backgroundsLevel[0] = BitmapFactory.decodeResource(context.getResources(), R.drawable.background);
-        backgroundsLevel[1] = BitmapFactory.decodeResource(context.getResources(), R.drawable.fondo_opt);
-        backgroundsLevel[2] = BitmapFactory.decodeResource(context.getResources(), R.drawable.background);
-        backgroundsLevel[3] = BitmapFactory.decodeResource(context.getResources(), R.drawable.fondo_opt);
+        backgroundsLevel[1] = BitmapFactory.decodeResource(context.getResources(), R.drawable.background2);
+        backgroundsLevel[2] = BitmapFactory.decodeResource(context.getResources(), R.drawable.background3);
+        backgroundsLevel[3] = BitmapFactory.decodeResource(context.getResources(), R.drawable.background2);
 
         //set background game
         background = backgroundsLevel[0];
@@ -122,16 +128,29 @@ public class GameView extends SurfaceView implements Runnable {
         gameOnsound = MediaPlayer.create(context,R.raw.gameon);
         killedEnemysound = MediaPlayer.create(context,R.raw.killedenemy);
         gameOversound = MediaPlayer.create(context,R.raw.gameover);
+        areYouWinningSon = MediaPlayer.create(context, R.raw.apex_legends_music);
 
         //starting the music to be played across the game
         gameOnsound.start();
+
+        gameover_title = BitmapFactory.decodeResource(context.getResources(), R.drawable.gameover);
+        this.gameover_title = Bitmap.createScaledBitmap(this.gameover_title,
+                this.gameover_title.getWidth()*2,
+                this.gameover_title.getHeight()*2,
+                true);
+
+        you_win_title = BitmapFactory.decodeResource(context.getResources(), R.drawable.champion);
+        this.you_win_title = Bitmap.createScaledBitmap(this.you_win_title,
+                (int) (this.you_win_title.getWidth() * 0.25),
+                (int) (this.you_win_title.getHeight() * 0.25),
+                true);
 
     }
 
     @Override
     public void run() {
         while (playing) {
-            update();
+            if(!youWon) update();
             draw();
             control();
         }
@@ -156,7 +175,7 @@ public class GameView extends SurfaceView implements Runnable {
             }
 
 
-            enemies[i].update(player.getSpeed());
+            enemies[i].update(player.getHp());
             //if collision occurs with player
             if (Rect.intersects(player.getDetectCollision(), enemies[i].getDetectCollision())) {
 
@@ -178,11 +197,13 @@ public class GameView extends SurfaceView implements Runnable {
 
                 //check hp player
                 if(player.getHp() <= 0){
+                    player.setAnimation_type(player.DEATH_ANIMATION);
                     gameOver();
                 } else if (player.getHp() >= 500){
                     // Set next level
                     level += 1;
-                    if(level > 4){
+                    if(level > MAX_LEVEL){
+                        youWon = true;
                         gameOver(); //change to Win player
                     }else {
                         // update Player
@@ -214,7 +235,7 @@ public class GameView extends SurfaceView implements Runnable {
     }
     private void gameOver() {
         //setting playing false to stop the game.
-        playing = false;
+        //playing = false;
         isGameOver = true;
 
 
@@ -275,10 +296,10 @@ public class GameView extends SurfaceView implements Runnable {
             }
 
             //drawing the score on the game screen
-            paint.setColor(Color.BLUE);
-            paint.setTextSize(60);
-            canvas.drawText("Level:"+level,100,50,paint);
-            canvas.drawText("Score:"+score,100,100,paint);
+            paint.setColor(Color.BLACK);
+            paint.setTextSize(80);
+            canvas.drawText("Level:"+level,100,60,paint);
+            canvas.drawText("Score:"+score,100,115,paint);
 
 
             //drawing boom image
@@ -296,7 +317,12 @@ public class GameView extends SurfaceView implements Runnable {
                 paint.setTextAlign(Paint.Align.CENTER);
 
                 int yPos=(int) ((canvas.getHeight() / 2) - ((paint.descent() + paint.ascent()) / 2));
-                canvas.drawText("Game Over",canvas.getWidth()/2,yPos,paint);
+                //canvas.drawText("Game Over",canvas.getWidth()/2,yPos,paint);
+                if (youWon){
+                    areYouWinningSon.start();
+                    canvas.drawBitmap(you_win_title,(canvas.getWidth()/2)-you_win_title.getWidth()/2,yPos-you_win_title.getHeight()/2,paint);
+                }
+                else canvas.drawBitmap(gameover_title,(canvas.getWidth()/2)-gameover_title.getWidth()/2,yPos-gameover_title.getHeight()/2,paint);
             }
 
             surfaceHolder.unlockCanvasAndPost(canvas);
@@ -336,22 +362,24 @@ public class GameView extends SurfaceView implements Runnable {
     @Override
     public boolean onTouchEvent(MotionEvent motionEvent) {
 
+        if(!isGameOver) {
+            switch (motionEvent.getAction() & MotionEvent.ACTION_MASK) {
+                case MotionEvent.ACTION_UP:
+                    player.stopBoosting();
+                    break;
+                case MotionEvent.ACTION_DOWN:
+                    player.setBoosting();
+                    break;
 
-        switch (motionEvent.getAction() & MotionEvent.ACTION_MASK) {
-            case MotionEvent.ACTION_UP:
-                player.stopBoosting();
-                break;
-            case MotionEvent.ACTION_DOWN:
-                player.setBoosting();
-                break;
-
+            }
         }
-//if the game's over, tappin on game Over screen sends you to MainActivity
-        if(isGameOver){
-
-            if(motionEvent.getAction()==MotionEvent.ACTION_DOWN){
-
-                context.startActivity(new Intent(context,MainActivity.class));
+        //if the game's over, tappin on game Over screen sends you to MainActivity
+        else {
+            if(motionEvent.getAction()==MotionEvent.ACTION_UP){
+                retrycounter++;
+                if(retrycounter>1) {
+                    context.startActivity(new Intent(context, MainActivity.class));
+                }
 
             }
 
